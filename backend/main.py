@@ -231,6 +231,8 @@ def delete_record(item_id: int, db: Session = Depends(get_db)):
                 experience.success_count -= 1
             if experience.total_count > 0:
                 experience.total_count -= 1
+            if experience.total_count <= 0:
+                db.delete(experience)
             db.commit()
 
     db.delete(obj)
@@ -261,6 +263,8 @@ def list_reviews(pending: bool | None = None, db: Session = Depends(get_db)):
                 correction_suggestion=None,
                 is_successful=0,
                 failure_reason=None,
+                archive_as_experience=0,
+                experience_key_points=None,
                 created_at=pr.created_at,
             )
             for pr in pending_records
