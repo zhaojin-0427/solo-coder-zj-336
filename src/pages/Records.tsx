@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Trash2 } from "lucide-react";
+import { Plus, Filter, Trash2, Camera } from "lucide-react";
 import { recordApi } from "@/api/client";
 import { useArchiveStore } from "@/store/useArchiveStore";
 import type { PracticeRecord, RecordStatus } from "@/types";
@@ -10,6 +10,17 @@ import Modal from "@/components/Modal";
 import { cn } from "@/lib/utils";
 
 const foamStates = ["细密如雪", "粗散易消", "乳白绵厚", "薄而不匀", "凝乳咬盏"];
+
+const photoPlaceholders = [
+  { key: "bamboo_slope", label: "竹枝斜出" },
+  { key: "plum_shadow", label: "梅枝疏影" },
+  { key: "orchid_three", label: "兰叶三笔" },
+  { key: "cloud_roll", label: "云纹舒卷" },
+  { key: "pine_needle", label: "松针细描" },
+  { key: "far_mountain", label: "远山如黛" },
+  { key: "moon_circle", label: "月映汤面" },
+  { key: "lotus_leaf", label: "荷露初凝" },
+];
 
 export default function Records() {
   const { teaSamples, teaBowls, teaWhisks, techniques, fetchAll } = useArchiveStore();
@@ -30,6 +41,7 @@ export default function Records() {
     whisking_duration_sec: "180",
     foam_state: "细密如雪",
     pattern_description: "",
+    pattern_photo_url: "",
   });
 
   useEffect(() => {
@@ -62,6 +74,7 @@ export default function Records() {
         whisking_duration_sec: Number(form.whisking_duration_sec),
         foam_state: form.foam_state,
         pattern_description: form.pattern_description || undefined,
+        pattern_photo_url: form.pattern_photo_url || undefined,
       });
       await loadRecords();
       setModalOpen(false);
@@ -69,6 +82,7 @@ export default function Records() {
         ...form,
         practitioner_name: "",
         pattern_description: "",
+        pattern_photo_url: "",
       });
     } finally {
       setSaving(false);
@@ -146,13 +160,18 @@ export default function Records() {
           {records.map((r) => (
             <div key={r.id} className="card-paper p-5 group hover:shadow-ink-lg transition-all duration-200">
               <div className="flex items-start gap-4">
-                <Link to={`/records/${r.id}`}>
+                <Link to={`/records/${r.id}`} className="relative">
                   <PatternArt
                     seed={r.pattern_seed}
                     foamState={r.foam_state}
                     size={72}
                     className="rounded-full shrink-0 shadow-ink"
                   />
+                  {r.pattern_photo_url && (
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gold border-2 border-paper-light flex items-center justify-center shadow-ink">
+                      <Camera size={10} className="text-paper-light" />
+                    </div>
+                  )}
                 </Link>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
@@ -328,6 +347,29 @@ export default function Records() {
               rows={2}
               className="input-ink resize-none"
             />
+          </div>
+          <div>
+            <label className="label-ink flex items-center gap-1.5">
+              <Camera size={14} /> 纹样照片占位
+            </label>
+            <p className="text-xs text-ink-400 mb-2">选择对应纹样类型作为照片占位标识（实际拍照留位）</p>
+            <div className="flex flex-wrap gap-2">
+              {photoPlaceholders.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setForm({ ...form, pattern_photo_url: form.pattern_photo_url === p.key ? "" : p.key })}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs border transition-all flex items-center gap-1",
+                    form.pattern_photo_url === p.key
+                      ? "bg-gold text-paper-light border-gold shadow-ink"
+                      : "border-ink-200 text-ink-600 hover:border-ink-300 bg-paper-light"
+                  )}
+                >
+                  <Camera size={11} /> {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </Modal>

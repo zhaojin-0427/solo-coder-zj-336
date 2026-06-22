@@ -63,6 +63,7 @@ export interface PracticeRecord {
   whisking_duration_sec: number;
   foam_state: string;
   pattern_description?: string;
+  pattern_photo_url?: string;
   pattern_seed?: number;
   created_at: string;
   tea_sample?: TeaSample;
@@ -144,6 +145,7 @@ export interface PracticeRecordCreate {
   whisking_duration_sec: number;
   foam_state: string;
   pattern_description?: string;
+  pattern_photo_url?: string;
 }
 
 export interface ReviewCreate {

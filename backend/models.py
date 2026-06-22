@@ -84,6 +84,7 @@ class PracticeRecord(Base):
     whisking_duration_sec = Column(Integer, nullable=False)
     foam_state = Column(Text, nullable=False)
     pattern_description = Column(Text)
+    pattern_photo_url = Column(Text)
     pattern_seed = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -110,6 +110,7 @@ class PracticeRecordCreate(BaseModel):
     whisking_duration_sec: int = Field(..., ge=0)
     foam_state: str = Field(..., max_length=50)
     pattern_description: Optional[str] = None
+    pattern_photo_url: Optional[str] = None
 
 
 class ReviewOut(BaseModel):
@@ -140,6 +141,7 @@ class PracticeRecordOut(BaseModel):
     whisking_duration_sec: int
     foam_state: str
     pattern_description: Optional[str]
+    pattern_photo_url: Optional[str]
     pattern_seed: Optional[int]
     created_at: datetime
     tea_sample: Optional[TeaSampleOut] = None

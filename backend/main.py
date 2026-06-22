@@ -251,31 +251,46 @@ def create_review(payload: schemas.ReviewCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(review)
 
+    tea = record.tea_sample
+    tech = record.technique
+
+    def get_or_create_exp():
+        e = (
+            db.query(models.Experience)
+            .filter(
+                models.Experience.tea_sample_id == record.tea_sample_id,
+                models.Experience.technique_id == record.technique_id,
+            )
+            .first()
+        )
+        if not e:
+            tea_desc = f"{tea.name}" if tea else "该茶样"
+            tech_desc = f"{tech.name}" if tech else "该手法"
+            e = models.Experience(
+                tea_sample_id=record.tea_sample_id,
+                technique_id=record.technique_id,
+                summary=f"{tea_desc} 配 {tech_desc} 的组合经验沉淀",
+                key_points=f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、沫饽{record.foam_state}",
+                success_count=0,
+                total_count=0,
+            )
+            db.add(e)
+            db.commit()
+            db.refresh(e)
+        return e
+
     if review.is_successful == 1:
-        exp = (
-            db.query(models.Experience)
-            .filter(
-                models.Experience.tea_sample_id == record.tea_sample_id,
-                models.Experience.technique_id == record.technique_id,
-            )
-            .first()
-        )
-        if exp:
-            exp.success_count += 1
-            exp.total_count += 1
-            db.commit()
+        exp = get_or_create_exp()
+        exp.success_count += 1
+        exp.total_count += 1
+        if tea and tech:
+            exp.summary = f"{tea.name} 配 {tech.name}，汤花{record.foam_state}，纹样复现成功"
+            exp.key_points = f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、水温{tech.water_temp_c or '—'}度"
+        db.commit()
     else:
-        exp = (
-            db.query(models.Experience)
-            .filter(
-                models.Experience.tea_sample_id == record.tea_sample_id,
-                models.Experience.technique_id == record.technique_id,
-            )
-            .first()
-        )
-        if exp:
-            exp.total_count += 1
-            db.commit()
+        exp = get_or_create_exp()
+        exp.total_count += 1
+        db.commit()
 
     return review
 

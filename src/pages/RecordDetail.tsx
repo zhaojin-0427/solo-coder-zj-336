@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Droplets, Leaf, CupSoda, Sparkles, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Clock, Droplets, Leaf, CupSoda, Sparkles, MessageSquareText, Camera, ImagePlus } from "lucide-react";
 import { recordApi, reviewApi } from "@/api/client";
 import type { PracticeRecord, Review as ReviewType } from "@/types";
 import { SectionTitle, StatusSeal, ScoreBar, formatDate } from "@/components/ui";
@@ -14,6 +14,20 @@ const foamLabels: Record<string, string> = {
   "乳白绵厚": "乳白绵厚，质地稠密",
   "薄而不匀": "沫饽薄且不均匀",
   "凝乳咬盏": "凝乳状咬盏，持久不散",
+};
+
+const photoLabelMap: Record<string, string> = {
+  "bamboo_slope": "竹枝斜出",
+  "plum_shadow": "梅枝疏影",
+  "orchid_three": "兰叶三笔",
+  "cloud_roll": "云纹舒卷",
+  "pine_needle": "松针细描",
+  "far_mountain": "远山如黛",
+  "moon_circle": "月映汤面",
+  "lotus_leaf": "荷露初凝",
+  "empty_scatter": "散落点墨",
+  "early_dissolve": "初现即散",
+  "no_foam": "汤花未起",
 };
 
 export default function RecordDetail() {
@@ -92,7 +106,7 @@ export default function RecordDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <div className="card-paper p-6 flex flex-col items-center">
             <PatternArt
               seed={record.pattern_seed}
@@ -102,7 +116,7 @@ export default function RecordDetail() {
             />
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-lg font-serif font-semibold text-ink-800">纹样复盘</span>
+                <span className="text-lg font-serif font-semibold text-ink-800">纹样示意</span>
               </div>
               <p className="text-sm text-ink-500 leading-relaxed">
                 {record.pattern_description || "未记录纹样描述"}
@@ -126,6 +140,51 @@ export default function RecordDetail() {
                 <p className="text-xs text-ink-400 mt-1.5">{foamLabels[record.foam_state]}</p>
               )}
             </div>
+          </div>
+
+          <div className="card-paper p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Camera size={16} className="text-gold" />
+                <span className="text-sm font-serif font-semibold text-ink-800">最终纹样照片占位</span>
+              </div>
+              {!record.pattern_photo_url && (
+                <span className="text-[10px] text-ink-300">未上传</span>
+              )}
+            </div>
+            {record.pattern_photo_url ? (
+              <div>
+                <div className="w-full aspect-square rounded-lg border-2 border-dashed border-gold/40 bg-paper-light flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-[0.03]" style={{
+                    backgroundImage: "radial-gradient(circle, #B8924A 1px, transparent 1px)",
+                    backgroundSize: "16px 16px",
+                  }} />
+                  <div className="relative text-center p-6">
+                    <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-3">
+                      <Camera size={22} className="text-gold" />
+                    </div>
+                    <div className="font-serif font-semibold text-ink-800 text-sm mb-1">
+                      {photoLabelMap[record.pattern_photo_url] || "纹样照片"}
+                    </div>
+                    <div className="text-xs text-ink-400 leading-relaxed">
+                      照片占位标识<br />
+                      等待实际拍照归档
+                    </div>
+                    <div className="mt-3 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gold/10 text-gold-dark text-[10px] font-medium">
+                      <ImagePlus size={10} /> 点位：{record.pattern_photo_url}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full aspect-square rounded-lg border-2 border-dashed border-ink-200 flex flex-col items-center justify-center bg-paper-light/50">
+                <div className="w-10 h-10 rounded-full bg-ink-100 flex items-center justify-center mb-2 opacity-60">
+                  <ImagePlus size={18} className="text-ink-300" />
+                </div>
+                <div className="text-xs text-ink-300">未设置照片占位</div>
+                <div className="text-[10px] text-ink-200 mt-1">录入点茶时可选择纹样类型占位</div>
+              </div>
+            )}
           </div>
         </div>
 

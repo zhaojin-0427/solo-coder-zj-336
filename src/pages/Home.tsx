@@ -20,7 +20,7 @@ import PatternArt from "@/components/PatternArt";
 const cycleSteps = [
   { icon: Archive, label: "器具建档", desc: "茶样·茶盏·茶筅·注汤手法", to: "/archive", color: "#B8924A" },
   { icon: PenLine, label: "点茶记录", desc: "茶粉·注水·击拂·沫饽", to: "/records", color: "#7C8C5E" },
-  { icon: Image, label: "纹样复盘", desc: "纹样占位·参数回看", to: "/records", color: "#566340" },
+  { icon: Image, label: "纹样复盘", desc: "纹样占位·参数回看", to: "/pattern-review", color: "#566340" },
   { icon: MessageSquareText, label: "点评沉淀", desc: "三维度评分·纠偏·经验", to: "/review", color: "#B23A2E" },
 ];
 

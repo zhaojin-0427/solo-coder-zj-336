@@ -14,6 +14,7 @@ const navItems = [
   { to: "/", label: "首页", icon: LayoutGrid, end: true },
   { to: "/archive", label: "器具档案", icon: Archive },
   { to: "/records", label: "练习记录", icon: PenLine },
+  { to: "/pattern-review", label: "纹样复盘", icon: Image },
   { to: "/review", label: "点评反馈", icon: MessageSquareText },
   { to: "/experience", label: "经验沉淀", icon: Lightbulb },
   { to: "/stats", label: "统计", icon: BarChart3 },

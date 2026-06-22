@@ -59,6 +59,10 @@ def seed_if_empty():
             ("李墨白", 3, 3, 1, 1, 3.0, 4, 230, "薄而不匀", "汤花未起，纹样难绘"),
         ]
 
+        photo_placeholders = [
+            "bamboo_slope", "orchid_three", "empty_scatter", "plum_shadow",
+            "early_dissolve", "cloud_roll", "pine_needle", "no_foam",
+        ]
         for i, (pn, ts, tb, tw, tc, grams, rounds, dur, foam, desc) in enumerate(records_data):
             rec = models.PracticeRecord(
                 practitioner_name=pn,
@@ -71,6 +75,7 @@ def seed_if_empty():
                 whisking_duration_sec=dur,
                 foam_state=foam,
                 pattern_description=desc,
+                pattern_photo_url=photo_placeholders[i],
                 pattern_seed=random.randint(1000, 9999),
                 created_at=now - timedelta(days=8 - i),
             )
