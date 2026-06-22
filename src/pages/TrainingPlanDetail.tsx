@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { trainingPlanApi, trainingSessionApi } from "@/api/client";
 import { useArchiveStore } from "@/store/useArchiveStore";
-import type { TrainingPlanDetail, TrainingSession, TrainingSessionCreate, SessionStatus } from "@/types";
+import type { TrainingPlanDetail, TrainingSession, TrainingSessionCreate, SessionStatus, PlanStatus } from "@/types";
 import { SectionTitle, StatCard, ScoreBar, formatDate, formatDateShort } from "@/components/ui";
 import Modal from "@/components/Modal";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,23 @@ const SESSION_STATUS_META: Record<SessionStatus, { label: string; className: str
   completed: { label: "已完成", className: "bg-tea/10 text-tea border-tea/30" },
   cancelled: { label: "已取消", className: "bg-cinnabar/10 text-cinnabar border-cinnabar/30" },
 };
+
+const PLAN_STATUS_META: Record<PlanStatus, { label: string; className: string }> = {
+  not_started: { label: "未开始", className: "bg-ink-100 text-ink-500 border-ink-200" },
+  in_progress: { label: "进行中", className: "bg-tea/10 text-tea border-tea/30" },
+  completed: { label: "已完成", className: "bg-gold/10 text-gold border-gold/30" },
+  overdue: { label: "已逾期", className: "bg-cinnabar/10 text-cinnabar border-cinnabar/30" },
+};
+
+function getPlanStatus(plan: TrainingPlanDetail): PlanStatus {
+  if (plan.status) return plan.status;
+  const now = new Date();
+  const start = new Date(plan.start_date);
+  const end = new Date(plan.end_date);
+  if (now < start) return "not_started";
+  if (now > end) return "overdue";
+  return "in_progress";
+}
 
 function nextWeekISO() {
   const d = new Date();
@@ -157,6 +174,9 @@ export default function TrainingPlanDetailPage() {
             <div className="flex items-baseline gap-3">
               <div className="w-1 h-8 bg-gold rounded-full" />
               <h2 className="text-2xl font-serif font-semibold text-ink-800">{plan.name}</h2>
+              <span className={cn("shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium border", PLAN_STATUS_META[getPlanStatus(plan)].className)}>
+                {PLAN_STATUS_META[getPlanStatus(plan)].label}
+              </span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-500 ml-4">
               <span className="flex items-center gap-1"><User size={11} /> {plan.teacher_name}</span>

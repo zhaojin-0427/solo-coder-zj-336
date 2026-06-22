@@ -187,6 +187,7 @@ export interface TrainingPlan {
   created_at: string;
   tea_sample?: TeaSample;
   target_technique?: PouringTechnique;
+  status?: PlanStatus;
 }
 
 export interface TrainingPlanCreate {

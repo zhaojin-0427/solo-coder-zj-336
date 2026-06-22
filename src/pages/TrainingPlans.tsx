@@ -27,7 +27,8 @@ const STATUS_META: Record<PlanStatus, { label: string; className: string }> = {
   overdue: { label: "已逾期", className: "bg-cinnabar/10 text-cinnabar border-cinnabar/30" },
 };
 
-function computeLocalStatus(plan: TrainingPlan): PlanStatus {
+function getPlanStatus(plan: TrainingPlan): PlanStatus {
+  if (plan.status) return plan.status;
   const now = new Date();
   const start = new Date(plan.start_date);
   const end = new Date(plan.end_date);
@@ -256,7 +257,7 @@ export default function TrainingPlans() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlans.map((plan) => {
-            const status = computeLocalStatus(plan);
+            const status = getPlanStatus(plan);
             const meta = STATUS_META[status];
             return (
               <div

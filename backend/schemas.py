@@ -243,6 +243,7 @@ class TrainingPlanOut(TrainingPlanBase):
     created_at: datetime
     tea_sample: Optional[TeaSampleOut] = None
     target_technique: Optional[PouringTechniqueOut] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True

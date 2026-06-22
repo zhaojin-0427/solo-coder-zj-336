@@ -488,7 +488,11 @@ def build_plan_detail(plan: models.TrainingPlan, db: Session) -> schemas.Trainin
     completed_sessions = sum(1 for s in sessions if s.status == "completed")
     linked_records = plan.practice_records
     linked_count = len(linked_records)
-    reviewed_records = [r for r in linked_records if r.review]
+    reviewed_records = sorted(
+        [r for r in linked_records if r.review],
+        key=lambda r: r.review.created_at,
+        reverse=True,
+    )
     reviewed_count = len(reviewed_records)
     success_count = sum(1 for r in reviewed_records if r.review.is_successful == 1)
     achievement_rate = 0.0
@@ -522,6 +526,7 @@ def build_plan_detail(plan: models.TrainingPlan, db: Session) -> schemas.Trainin
         created_at=plan.created_at,
         tea_sample=plan.tea_sample,
         target_technique=plan.target_technique,
+        status=compute_plan_status(plan, db),
         sessions=sessions,
         completed_sessions=completed_sessions,
         linked_records_count=linked_count,
@@ -548,6 +553,8 @@ def list_training_plans(
     plans = query.order_by(models.TrainingPlan.created_at.desc()).all()
     if status:
         plans = [p for p in plans if compute_plan_status(p, db) == status]
+    for p in plans:
+        p.status = compute_plan_status(p, db)
     return plans
 
 
