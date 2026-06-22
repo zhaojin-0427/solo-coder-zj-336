@@ -4,14 +4,26 @@ from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, inspect, text
 
 from database import engine, get_db, Base
 import models
 import schemas
 from seed import seed_if_empty
 
+
+def migrate_db():
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("review")}
+    with engine.begin() as conn:
+        if "archive_as_experience" not in columns:
+            conn.execute(text("ALTER TABLE review ADD COLUMN archive_as_experience INTEGER NOT NULL DEFAULT 0"))
+        if "experience_key_points" not in columns:
+            conn.execute(text("ALTER TABLE review ADD COLUMN experience_key_points TEXT"))
+
+
 Base.metadata.create_all(bind=engine)
+migrate_db()
 seed_if_empty()
 
 app = FastAPI(title="宋式点茶练习与茶百戏纹样复现平台 API", version="1.0.0")
@@ -204,6 +216,23 @@ def get_record(item_id: int, db: Session = Depends(get_db)):
 @app.delete("/api/practice-records/{item_id}")
 def delete_record(item_id: int, db: Session = Depends(get_db)):
     obj = get_or_404(db, models.PracticeRecord, item_id)
+
+    if obj.review and obj.review.archive_as_experience == 1:
+        experience = (
+            db.query(models.Experience)
+            .filter(
+                models.Experience.tea_sample_id == obj.tea_sample_id,
+                models.Experience.technique_id == obj.technique_id,
+            )
+            .first()
+        )
+        if experience:
+            if obj.review.is_successful == 1 and experience.success_count > 0:
+                experience.success_count -= 1
+            if experience.total_count > 0:
+                experience.total_count -= 1
+            db.commit()
+
     db.delete(obj)
     db.commit()
     return {"ok": True}
@@ -246,51 +275,58 @@ def create_review(payload: schemas.ReviewCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="该练习记录已有点评")
     data = payload.model_dump()
     data["is_successful"] = 1 if data["is_successful"] else 0
+    data["archive_as_experience"] = 1 if data["archive_as_experience"] else 0
     review = models.Review(**data)
     db.add(review)
     db.commit()
     db.refresh(review)
 
-    tea = record.tea_sample
-    tech = record.technique
+    if review.archive_as_experience == 1:
+        tea = record.tea_sample
+        tech = record.technique
 
-    def get_or_create_exp():
-        e = (
-            db.query(models.Experience)
-            .filter(
-                models.Experience.tea_sample_id == record.tea_sample_id,
-                models.Experience.technique_id == record.technique_id,
+        def get_or_create_exp():
+            e = (
+                db.query(models.Experience)
+                .filter(
+                    models.Experience.tea_sample_id == record.tea_sample_id,
+                    models.Experience.technique_id == record.technique_id,
+                )
+                .first()
             )
-            .first()
-        )
-        if not e:
-            tea_desc = f"{tea.name}" if tea else "该茶样"
-            tech_desc = f"{tech.name}" if tech else "该手法"
-            e = models.Experience(
-                tea_sample_id=record.tea_sample_id,
-                technique_id=record.technique_id,
-                summary=f"{tea_desc} 配 {tech_desc} 的组合经验沉淀",
-                key_points=f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、沫饽{record.foam_state}",
-                success_count=0,
-                total_count=0,
-            )
-            db.add(e)
+            if not e:
+                tea_desc = f"{tea.name}" if tea else "该茶样"
+                tech_desc = f"{tech.name}" if tech else "该手法"
+                e = models.Experience(
+                    tea_sample_id=record.tea_sample_id,
+                    technique_id=record.technique_id,
+                    summary=f"{tea_desc} 配 {tech_desc} 的组合经验沉淀",
+                    key_points=f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、沫饽{record.foam_state}",
+                    success_count=0,
+                    total_count=0,
+                )
+                db.add(e)
+                db.commit()
+                db.refresh(e)
+            return e
+
+        if review.is_successful == 1:
+            exp = get_or_create_exp()
+            exp.success_count += 1
+            exp.total_count += 1
+            if tea and tech:
+                exp.summary = f"{tea.name} 配 {tech.name}，汤花{record.foam_state}，纹样复现成功"
+            if review.experience_key_points:
+                exp.key_points = review.experience_key_points
+            elif tea and tech:
+                exp.key_points = f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、水温{tech.water_temp_c or '—'}度"
             db.commit()
-            db.refresh(e)
-        return e
-
-    if review.is_successful == 1:
-        exp = get_or_create_exp()
-        exp.success_count += 1
-        exp.total_count += 1
-        if tea and tech:
-            exp.summary = f"{tea.name} 配 {tech.name}，汤花{record.foam_state}，纹样复现成功"
-            exp.key_points = f"茶粉{record.tea_powder_grams}g、注水{record.water_pour_rounds}轮、击拂{record.whisking_duration_sec}秒、水温{tech.water_temp_c or '—'}度"
-        db.commit()
-    else:
-        exp = get_or_create_exp()
-        exp.total_count += 1
-        db.commit()
+        else:
+            exp = get_or_create_exp()
+            exp.total_count += 1
+            if review.experience_key_points:
+                exp.key_points = review.experience_key_points
+            db.commit()
 
     return review
 

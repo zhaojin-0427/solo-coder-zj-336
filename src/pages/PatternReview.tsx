@@ -3,23 +3,9 @@ import { Link } from "react-router-dom";
 import { Search, Eye, Clock, CheckCircle2, XCircle, Camera, ChevronRight } from "lucide-react";
 import { recordApi } from "@/api/client";
 import type { PracticeRecord } from "@/types";
-import { SectionTitle, StatusSeal, formatDate } from "@/components/ui";
+import { SectionTitle, StatusSeal, formatDate, getPatternLabel, matchPatternPlaceholder } from "@/components/ui";
 import PatternArt from "@/components/PatternArt";
 import { cn } from "@/lib/utils";
-
-const photoLabelMap: Record<string, string> = {
-  "bamboo_slope": "竹枝斜出",
-  "plum_shadow": "梅枝疏影",
-  "orchid_three": "兰叶三笔",
-  "cloud_roll": "云纹舒卷",
-  "pine_needle": "松针细描",
-  "far_mountain": "远山如黛",
-  "moon_circle": "月映汤面",
-  "lotus_leaf": "荷露初凝",
-  "empty_scatter": "散落点墨",
-  "early_dissolve": "初现即散",
-  "no_foam": "汤花未起",
-};
 
 export default function PatternReview() {
   const [records, setRecords] = useState<PracticeRecord[]>([]);
@@ -57,7 +43,8 @@ export default function PatternReview() {
           (r.tea_sample?.name || "").toLowerCase().includes(k) ||
           (r.technique?.name || "").toLowerCase().includes(k) ||
           (r.pattern_description || "").toLowerCase().includes(k) ||
-          (r.pattern_photo_url || "").toLowerCase().includes(k)
+          r.foam_state.toLowerCase().includes(k) ||
+          matchPatternPlaceholder(searchKeyword, r.pattern_photo_url)
         );
       }
       return true;
@@ -120,7 +107,7 @@ export default function PatternReview() {
           <input
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            placeholder="搜索练习者、茶样、手法、纹样描述…"
+            placeholder="搜索练习者、茶样、手法、纹样描述、照片占位中文名…"
             className="flex-1 bg-transparent outline-none text-sm text-ink-700 placeholder:text-ink-300"
           />
         </div>
@@ -168,7 +155,7 @@ export default function PatternReview() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredRecords.map((r) => {
-            const photoLabel = r.pattern_photo_url ? (photoLabelMap[r.pattern_photo_url] || r.pattern_photo_url) : null;
+            const photoLabel = r.pattern_photo_url ? getPatternLabel(r.pattern_photo_url) : null;
             const review = r.review;
             return (
               <div key={r.id} className="card-paper overflow-hidden hover:shadow-ink-lg transition-all duration-200">

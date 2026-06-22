@@ -48,6 +48,8 @@ export interface Review {
   correction_suggestion?: string;
   is_successful: number;
   failure_reason?: string;
+  archive_as_experience: number;
+  experience_key_points?: string;
   created_at: string;
 }
 
@@ -157,4 +159,6 @@ export interface ReviewCreate {
   correction_suggestion?: string;
   is_successful: boolean;
   failure_reason?: string;
+  archive_as_experience: boolean;
+  experience_key_points?: string;
 }

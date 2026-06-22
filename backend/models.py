@@ -107,6 +107,8 @@ class Review(Base):
     correction_suggestion = Column(Text)
     is_successful = Column(Integer, nullable=False, default=0)
     failure_reason = Column(Text)
+    archive_as_experience = Column(Integer, nullable=False, default=0)
+    experience_key_points = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     practice_record = relationship("PracticeRecord", back_populates="review")

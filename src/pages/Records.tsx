@@ -1,32 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Trash2, Camera } from "lucide-react";
+import { Plus, Filter, Trash2, Camera, Search } from "lucide-react";
 import { recordApi } from "@/api/client";
 import { useArchiveStore } from "@/store/useArchiveStore";
 import type { PracticeRecord, RecordStatus } from "@/types";
-import { SectionTitle, StatusSeal, formatDate } from "@/components/ui";
+import { SectionTitle, StatusSeal, formatDate, PATTERN_PLACEHOLDERS, matchPatternPlaceholder } from "@/components/ui";
 import PatternArt from "@/components/PatternArt";
 import Modal from "@/components/Modal";
 import { cn } from "@/lib/utils";
 
 const foamStates = ["细密如雪", "粗散易消", "乳白绵厚", "薄而不匀", "凝乳咬盏"];
 
-const photoPlaceholders = [
-  { key: "bamboo_slope", label: "竹枝斜出" },
-  { key: "plum_shadow", label: "梅枝疏影" },
-  { key: "orchid_three", label: "兰叶三笔" },
-  { key: "cloud_roll", label: "云纹舒卷" },
-  { key: "pine_needle", label: "松针细描" },
-  { key: "far_mountain", label: "远山如黛" },
-  { key: "moon_circle", label: "月映汤面" },
-  { key: "lotus_leaf", label: "荷露初凝" },
-];
-
 export default function Records() {
   const { teaSamples, teaBowls, teaWhisks, techniques, fetchAll } = useArchiveStore();
   const [records, setRecords] = useState<PracticeRecord[]>([]);
   const [status, setStatus] = useState<RecordStatus>("all");
   const [teaFilter, setTeaFilter] = useState<number | "">("");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -90,10 +80,27 @@ export default function Records() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("确认删除此练习记录？")) return;
+    if (!confirm("确认删除此练习记录？删除后如已沉淀经验将同步回滚统计。")) return;
     await recordApi.remove(id);
     await loadRecords();
   }
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((r) => {
+      if (searchKeyword) {
+        const k = searchKeyword.toLowerCase();
+        const match =
+          r.practitioner_name.toLowerCase().includes(k) ||
+          (r.tea_sample?.name || "").toLowerCase().includes(k) ||
+          (r.technique?.name || "").toLowerCase().includes(k) ||
+          (r.pattern_description || "").toLowerCase().includes(k) ||
+          r.foam_state.toLowerCase().includes(k) ||
+          matchPatternPlaceholder(searchKeyword, r.pattern_photo_url);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [records, searchKeyword]);
 
   const statusTabs: { key: RecordStatus; label: string }[] = [
     { key: "all", label: "全部" },
@@ -124,6 +131,15 @@ export default function Records() {
         <div className="flex items-center gap-1.5 text-sm text-ink-400">
           <Filter size={15} /> 筛选：
         </div>
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-[320px]">
+          <Search size={14} className="text-ink-400" />
+          <input
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="搜索练习者、茶样、手法、纹样、照片占位…"
+            className="flex-1 bg-transparent outline-none text-sm text-ink-700 placeholder:text-ink-300"
+          />
+        </div>
         <div className="flex gap-1 bg-paper-light rounded-lg p-1 border border-ink-200/50">
           {statusTabs.map((t) => (
             <button
@@ -148,16 +164,20 @@ export default function Records() {
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
-        <span className="text-sm text-ink-400 ml-auto">共 {records.length} 条</span>
+        <span className="text-sm text-ink-400 ml-auto">共 {filteredRecords.length} 条</span>
       </div>
 
       {records.length === 0 ? (
         <div className="card-paper p-12 text-center text-ink-400">
           暂无练习记录，点击右上角录入
         </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="card-paper p-12 text-center text-ink-400">
+          没有匹配的记录，请调整搜索条件
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {records.map((r) => (
+          {filteredRecords.map((r) => (
             <div key={r.id} className="card-paper p-5 group hover:shadow-ink-lg transition-all duration-200">
               <div className="flex items-start gap-4">
                 <Link to={`/records/${r.id}`} className="relative">
@@ -354,7 +374,7 @@ export default function Records() {
             </label>
             <p className="text-xs text-ink-400 mb-2">选择对应纹样类型作为照片占位标识（实际拍照留位）</p>
             <div className="flex flex-wrap gap-2">
-              {photoPlaceholders.map((p) => (
+              {PATTERN_PLACEHOLDERS.map((p) => (
                 <button
                   key={p.key}
                   type="button"

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Droplets, Leaf, CupSoda, Sparkles, MessageSquareText, Camera, ImagePlus } from "lucide-react";
+import { ArrowLeft, Clock, Droplets, Leaf, CupSoda, Sparkles, MessageSquareText, Camera, ImagePlus, Check, Lightbulb } from "lucide-react";
 import { recordApi, reviewApi } from "@/api/client";
 import type { PracticeRecord, Review as ReviewType } from "@/types";
-import { SectionTitle, StatusSeal, ScoreBar, formatDate } from "@/components/ui";
+import { SectionTitle, StatusSeal, ScoreBar, formatDate, getPatternLabel } from "@/components/ui";
 import PatternArt from "@/components/PatternArt";
 import Modal from "@/components/Modal";
 import { cn } from "@/lib/utils";
@@ -14,20 +14,6 @@ const foamLabels: Record<string, string> = {
   "乳白绵厚": "乳白绵厚，质地稠密",
   "薄而不匀": "沫饽薄且不均匀",
   "凝乳咬盏": "凝乳状咬盏，持久不散",
-};
-
-const photoLabelMap: Record<string, string> = {
-  "bamboo_slope": "竹枝斜出",
-  "plum_shadow": "梅枝疏影",
-  "orchid_three": "兰叶三笔",
-  "cloud_roll": "云纹舒卷",
-  "pine_needle": "松针细描",
-  "far_mountain": "远山如黛",
-  "moon_circle": "月映汤面",
-  "lotus_leaf": "荷露初凝",
-  "empty_scatter": "散落点墨",
-  "early_dissolve": "初现即散",
-  "no_foam": "汤花未起",
 };
 
 export default function RecordDetail() {
@@ -45,6 +31,8 @@ export default function RecordDetail() {
     correction_suggestion: "",
     is_successful: true,
     failure_reason: "",
+    archive_as_experience: true,
+    experience_key_points: "",
   });
 
   useEffect(() => {
@@ -66,6 +54,8 @@ export default function RecordDetail() {
         correction_suggestion: reviewForm.correction_suggestion || undefined,
         is_successful: reviewForm.is_successful,
         failure_reason: reviewForm.is_successful ? undefined : reviewForm.failure_reason || undefined,
+        archive_as_experience: reviewForm.archive_as_experience,
+        experience_key_points: reviewForm.archive_as_experience && reviewForm.experience_key_points ? reviewForm.experience_key_points : undefined,
       });
       const updated = await recordApi.get(record.id);
       setRecord(updated);
@@ -164,7 +154,7 @@ export default function RecordDetail() {
                       <Camera size={22} className="text-gold" />
                     </div>
                     <div className="font-serif font-semibold text-ink-800 text-sm mb-1">
-                      {photoLabelMap[record.pattern_photo_url] || "纹样照片"}
+                      {getPatternLabel(record.pattern_photo_url) || "纹样照片"}
                     </div>
                     <div className="text-xs text-ink-400 leading-relaxed">
                       照片占位标识<br />
@@ -420,6 +410,49 @@ export default function RecordDetail() {
               rows={3}
               className="input-ink resize-none"
             />
+          </div>
+
+          <div className="p-4 rounded-lg bg-tea/5 border border-tea/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lightbulb size={16} className="text-tea-dark" />
+                <span className="text-sm font-medium text-ink-700">经验沉淀</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewForm({ ...reviewForm, archive_as_experience: !reviewForm.archive_as_experience })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  reviewForm.archive_as_experience ? "bg-tea" : "bg-ink-200"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow",
+                    reviewForm.archive_as_experience ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-ink-500">
+              {reviewForm.archive_as_experience
+                ? "勾选后将自动更新茶样+手法组合的成功统计，形成可复用的经验记录"
+                : "仅保存点评结果，不影响经验统计数据"}
+            </p>
+            {reviewForm.archive_as_experience && (
+              <div>
+                <label className="label-ink">
+                  <Check size={12} className="inline mr-1" /> 关键要点
+                </label>
+                <textarea
+                  value={reviewForm.experience_key_points}
+                  onChange={(e) => setReviewForm({ ...reviewForm, experience_key_points: e.target.value })}
+                  placeholder="记录可复用的关键操作要点，如茶粉用量、水温、击拂节奏等（可选，留空将自动填充）"
+                  rows={2}
+                  className="input-ink resize-none"
+                />
+              </div>
+            )}
           </div>
         </div>
       </Modal>

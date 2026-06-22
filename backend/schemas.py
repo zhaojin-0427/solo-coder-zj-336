@@ -123,6 +123,8 @@ class ReviewOut(BaseModel):
     correction_suggestion: Optional[str]
     is_successful: int
     failure_reason: Optional[str]
+    archive_as_experience: int
+    experience_key_points: Optional[str]
     created_at: datetime
 
     class Config:
@@ -163,6 +165,8 @@ class ReviewCreate(BaseModel):
     correction_suggestion: Optional[str] = None
     is_successful: bool = False
     failure_reason: Optional[str] = None
+    archive_as_experience: bool = True
+    experience_key_points: Optional[str] = None
 
 
 class ExperienceCreate(BaseModel):

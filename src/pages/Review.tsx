@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageSquareText, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { MessageSquareText, CheckCircle2, XCircle, Clock, Lightbulb, Check } from "lucide-react";
 import { recordApi, reviewApi } from "@/api/client";
 import type { PracticeRecord, Review as ReviewType } from "@/types";
 import { SectionTitle, StatusSeal, ScoreBar, formatDate } from "@/components/ui";
@@ -30,6 +30,8 @@ export default function Review() {
     correction_suggestion: "",
     is_successful: true,
     failure_reason: "",
+    archive_as_experience: true,
+    experience_key_points: "",
   });
 
   useEffect(() => {
@@ -63,6 +65,8 @@ export default function Review() {
       correction_suggestion: "",
       is_successful: true,
       failure_reason: "",
+      archive_as_experience: true,
+      experience_key_points: "",
     });
     setModalOpen(true);
   }
@@ -80,6 +84,8 @@ export default function Review() {
         correction_suggestion: form.correction_suggestion || undefined,
         is_successful: form.is_successful,
         failure_reason: form.is_successful ? undefined : form.failure_reason || undefined,
+        archive_as_experience: form.archive_as_experience,
+        experience_key_points: form.archive_as_experience && form.experience_key_points ? form.experience_key_points : undefined,
       });
       await loadData();
       setModalOpen(false);
@@ -195,6 +201,11 @@ export default function Review() {
                       <div className="flex items-center gap-3">
                         <span className="font-serif font-semibold text-ink-800">{r.practitioner_name}</span>
                         <StatusSeal review={review} />
+                        {review.archive_as_experience === 1 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-tea/10 text-tea-dark border border-tea/20">
+                            <Lightbulb size={10} /> 已沉淀
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-ink-400">
                         <span className="font-serif">{review.teacher_name}</span>
@@ -396,6 +407,49 @@ export default function Review() {
                 rows={3}
                 className="input-ink resize-none"
               />
+            </div>
+
+            <div className="p-4 rounded-lg bg-tea/5 border border-tea/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lightbulb size={16} className="text-tea-dark" />
+                  <span className="text-sm font-medium text-ink-700">经验沉淀</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, archive_as_experience: !form.archive_as_experience })}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    form.archive_as_experience ? "bg-tea" : "bg-ink-200"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow",
+                      form.archive_as_experience ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                </button>
+              </div>
+              <p className="text-xs text-ink-500">
+                {form.archive_as_experience
+                  ? "勾选后将自动更新茶样+手法组合的成功统计，形成可复用的经验记录"
+                  : "仅保存点评结果，不影响经验统计数据"}
+              </p>
+              {form.archive_as_experience && (
+                <div>
+                  <label className="label-ink">
+                    <Check size={12} className="inline mr-1" /> 关键要点
+                  </label>
+                  <textarea
+                    value={form.experience_key_points}
+                    onChange={(e) => setForm({ ...form, experience_key_points: e.target.value })}
+                    placeholder="记录可复用的关键操作要点，如茶粉用量、水温、击拂节奏等（可选，留空将自动填充）"
+                    rows={2}
+                    className="input-ink resize-none"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
