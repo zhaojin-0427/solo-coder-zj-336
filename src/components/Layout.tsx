@@ -7,12 +7,14 @@ import {
   MessageSquareText,
   BarChart3,
   Lightbulb,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "首页", icon: LayoutGrid, end: true },
   { to: "/archive", label: "器具档案", icon: Archive },
+  { to: "/training-plans", label: "训练计划", icon: CalendarClock },
   { to: "/records", label: "练习记录", icon: PenLine },
   { to: "/pattern-review", label: "纹样复盘", icon: Image },
   { to: "/review", label: "点评反馈", icon: MessageSquareText },

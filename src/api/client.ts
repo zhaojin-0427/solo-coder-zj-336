@@ -16,6 +16,14 @@ import type {
   StabilityStat,
   DurationBin,
   RecordStatus,
+  TrainingPlan,
+  TrainingPlanCreate,
+  TrainingPlanDetail,
+  TrainingSession,
+  TrainingSessionCreate,
+  TrainingSessionUpdate,
+  TrainingPlanStat,
+  PlanStatus,
 } from "@/types";
 
 const api = axios.create({
@@ -80,4 +88,24 @@ export const statsApi = {
   failureReasons: () => safe<FailureReasonStat[]>(api.get("/statistics/failure-reasons")),
   stability: () => safe<StabilityStat[]>(api.get("/statistics/pattern-stability")),
   duration: () => safe<DurationBin[]>(api.get("/statistics/duration-distribution")),
+  trainingPlans: () => safe<TrainingPlanStat[]>(api.get("/statistics/training-plans")),
+};
+
+export const trainingPlanApi = {
+  list: (params?: { tea_sample_id?: number; teacher_name?: string; status?: PlanStatus }) =>
+    safe<TrainingPlan[]>(api.get("/training-plans", { params })),
+  get: (id: number) => safe<TrainingPlanDetail>(api.get(`/training-plans/${id}`)),
+  create: (data: TrainingPlanCreate) => safe<TrainingPlan>(api.post("/training-plans", data)),
+  update: (id: number, data: Partial<TrainingPlanCreate>) =>
+    safe<TrainingPlan>(api.put(`/training-plans/${id}`, data)),
+  remove: (id: number) => safe<{ ok: boolean }>(api.delete(`/training-plans/${id}`)),
+  listSessions: (planId: number) =>
+    safe<TrainingSession[]>(api.get(`/training-plans/${planId}/sessions`)),
+};
+
+export const trainingSessionApi = {
+  create: (data: TrainingSessionCreate) => safe<TrainingSession>(api.post("/training-sessions", data)),
+  update: (id: number, data: TrainingSessionUpdate) =>
+    safe<TrainingSession>(api.put(`/training-sessions/${id}`, data)),
+  remove: (id: number) => safe<{ ok: boolean }>(api.delete(`/training-sessions/${id}`)),
 };

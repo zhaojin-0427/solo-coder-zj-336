@@ -67,12 +67,16 @@ export interface PracticeRecord {
   pattern_description?: string;
   pattern_photo_url?: string;
   pattern_seed?: number;
+  training_plan_id?: number;
+  training_session_id?: number;
   created_at: string;
   tea_sample?: TeaSample;
   tea_bowl?: TeaBowl;
   tea_whisk?: TeaWhisk;
   technique?: PouringTechnique;
   review?: Review;
+  training_plan?: TrainingPlan;
+  training_session?: TrainingSession;
 }
 
 export interface Experience {
@@ -148,6 +152,8 @@ export interface PracticeRecordCreate {
   foam_state: string;
   pattern_description?: string;
   pattern_photo_url?: string;
+  training_plan_id?: number;
+  training_session_id?: number;
 }
 
 export interface ReviewCreate {
@@ -161,4 +167,106 @@ export interface ReviewCreate {
   failure_reason?: string;
   archive_as_experience: boolean;
   experience_key_points?: string;
+}
+
+export type PlanStatus = "not_started" | "in_progress" | "completed" | "overdue";
+
+export type SessionStatus = "scheduled" | "completed" | "cancelled";
+
+export interface TrainingPlan {
+  id: number;
+  name: string;
+  tea_sample_id: number;
+  target_pattern?: string;
+  target_technique_id: number;
+  start_date: string;
+  end_date: string;
+  weekly_frequency: number;
+  stage_goal?: string;
+  teacher_name: string;
+  created_at: string;
+  tea_sample?: TeaSample;
+  target_technique?: PouringTechnique;
+}
+
+export interface TrainingPlanCreate {
+  name: string;
+  tea_sample_id: number;
+  target_pattern?: string;
+  target_technique_id: number;
+  start_date: string;
+  end_date: string;
+  weekly_frequency: number;
+  stage_goal?: string;
+  teacher_name: string;
+}
+
+export interface TrainingSession {
+  id: number;
+  plan_id: number;
+  session_date: string;
+  practitioner_name: string;
+  expected_tea_bowl_id?: number;
+  expected_tea_whisk_id?: number;
+  status: SessionStatus;
+  pre_session_tip?: string;
+  created_at: string;
+  expected_tea_bowl?: TeaBowl;
+  expected_tea_whisk?: TeaWhisk;
+}
+
+export interface TrainingSessionCreate {
+  plan_id: number;
+  session_date: string;
+  practitioner_name: string;
+  expected_tea_bowl_id?: number;
+  expected_tea_whisk_id?: number;
+  status?: SessionStatus;
+  pre_session_tip?: string;
+}
+
+export interface TrainingSessionUpdate {
+  session_date?: string;
+  practitioner_name?: string;
+  expected_tea_bowl_id?: number;
+  expected_tea_whisk_id?: number;
+  status?: SessionStatus;
+  pre_session_tip?: string;
+}
+
+export interface PlanReviewInfo {
+  record_id: number;
+  practitioner_name: string;
+  created_at: string;
+  teacher_name: string;
+  correction_suggestion?: string;
+  is_successful: number;
+}
+
+export interface TrainingPlanDetail extends TrainingPlan {
+  sessions: TrainingSession[];
+  completed_sessions: number;
+  linked_records_count: number;
+  reviewed_count: number;
+  success_count: number;
+  achievement_rate: number;
+  recent_reviews: PlanReviewInfo[];
+  pending_improvements: PlanReviewInfo[];
+}
+
+export interface TrainingPlanStat {
+  id: number;
+  name: string;
+  teacher_name: string;
+  achievement_rate: number;
+  session_completion_rate: number;
+  in_plan_success_rate: number;
+  overdue_sessions_count: number;
+  tea_sample_name: string;
+}
+
+export interface PlanListFilters {
+  tea_sample_id?: number;
+  teacher_name?: string;
+  status?: PlanStatus;
 }

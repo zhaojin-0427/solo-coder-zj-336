@@ -14,12 +14,21 @@ from seed import seed_if_empty
 
 def migrate_db():
     inspector = inspect(engine)
-    columns = {col["name"] for col in inspector.get_columns("review")}
-    with engine.begin() as conn:
-        if "archive_as_experience" not in columns:
-            conn.execute(text("ALTER TABLE review ADD COLUMN archive_as_experience INTEGER NOT NULL DEFAULT 0"))
-        if "experience_key_points" not in columns:
-            conn.execute(text("ALTER TABLE review ADD COLUMN experience_key_points TEXT"))
+    all_tables = set(inspector.get_table_names())
+    if "review" in all_tables:
+        review_columns = {col["name"] for col in inspector.get_columns("review")}
+        with engine.begin() as conn:
+            if "archive_as_experience" not in review_columns:
+                conn.execute(text("ALTER TABLE review ADD COLUMN archive_as_experience INTEGER NOT NULL DEFAULT 0"))
+            if "experience_key_points" not in review_columns:
+                conn.execute(text("ALTER TABLE review ADD COLUMN experience_key_points TEXT"))
+    if "practice_record" in all_tables:
+        pr_columns = {col["name"] for col in inspector.get_columns("practice_record")}
+        with engine.begin() as conn:
+            if "training_plan_id" not in pr_columns:
+                conn.execute(text("ALTER TABLE practice_record ADD COLUMN training_plan_id INTEGER"))
+            if "training_session_id" not in pr_columns:
+                conn.execute(text("ALTER TABLE practice_record ADD COLUMN training_session_id INTEGER"))
 
 
 Base.metadata.create_all(bind=engine)
@@ -199,6 +208,13 @@ def create_record(payload: schemas.PracticeRecordCreate, db: Session = Depends(g
     get_or_404(db, models.TeaBowl, payload.tea_bowl_id)
     get_or_404(db, models.TeaWhisk, payload.tea_whisk_id)
     get_or_404(db, models.PouringTechnique, payload.technique_id)
+    if payload.training_plan_id:
+        get_or_404(db, models.TrainingPlan, payload.training_plan_id)
+    if payload.training_session_id:
+        session = get_or_404(db, models.TrainingSession, payload.training_session_id)
+        if session.status == "scheduled":
+            session.status = "completed"
+            db.commit()
     data = payload.model_dump()
     data["pattern_seed"] = generate_pattern_seed(payload.practitioner_name + payload.foam_state)
     obj = models.PracticeRecord(**data)
@@ -450,6 +466,188 @@ def stats_duration(db: Session = Depends(get_db)):
                 b["count"] += 1
                 break
     return [{"label": b["label"], "count": b["count"]} for b in bins]
+
+
+def compute_plan_status(plan: models.TrainingPlan, db: Session) -> str:
+    now = datetime.utcnow()
+    sessions = db.query(models.TrainingSession).filter(models.TrainingSession.plan_id == plan.id).all()
+    total_sessions = len(sessions)
+    completed_sessions = sum(1 for s in sessions if s.status == "completed")
+    if now < plan.start_date:
+        return "not_started"
+    if total_sessions > 0 and completed_sessions == total_sessions:
+        return "completed"
+    if now > plan.end_date:
+        return "overdue"
+    return "in_progress"
+
+
+def build_plan_detail(plan: models.TrainingPlan, db: Session) -> schemas.TrainingPlanDetailOut:
+    sessions = sorted(plan.sessions, key=lambda s: s.session_date)
+    total_sessions = len(sessions)
+    completed_sessions = sum(1 for s in sessions if s.status == "completed")
+    linked_records = plan.practice_records
+    linked_count = len(linked_records)
+    reviewed_records = [r for r in linked_records if r.review]
+    reviewed_count = len(reviewed_records)
+    success_count = sum(1 for r in reviewed_records if r.review.is_successful == 1)
+    achievement_rate = 0.0
+    if total_sessions > 0:
+        achievement_rate = round(completed_sessions / total_sessions * 100, 1)
+    recent_reviews = []
+    pending_improvements = []
+    for r in reviewed_records[:5]:
+        review_data = {
+            "record_id": r.id,
+            "practitioner_name": r.practitioner_name,
+            "created_at": r.review.created_at,
+            "teacher_name": r.review.teacher_name,
+            "correction_suggestion": r.review.correction_suggestion,
+            "is_successful": r.review.is_successful,
+        }
+        recent_reviews.append(review_data)
+        if r.review.is_successful == 0 and r.review.correction_suggestion:
+            pending_improvements.append(review_data)
+    return schemas.TrainingPlanDetailOut(
+        id=plan.id,
+        name=plan.name,
+        tea_sample_id=plan.tea_sample_id,
+        target_pattern=plan.target_pattern,
+        target_technique_id=plan.target_technique_id,
+        start_date=plan.start_date,
+        end_date=plan.end_date,
+        weekly_frequency=plan.weekly_frequency,
+        stage_goal=plan.stage_goal,
+        teacher_name=plan.teacher_name,
+        created_at=plan.created_at,
+        tea_sample=plan.tea_sample,
+        target_technique=plan.target_technique,
+        sessions=sessions,
+        completed_sessions=completed_sessions,
+        linked_records_count=linked_count,
+        reviewed_count=reviewed_count,
+        success_count=success_count,
+        achievement_rate=achievement_rate,
+        recent_reviews=recent_reviews,
+        pending_improvements=pending_improvements,
+    )
+
+
+@app.get("/api/training-plans", response_model=list[schemas.TrainingPlanOut])
+def list_training_plans(
+    tea_sample_id: int | None = None,
+    teacher_name: str | None = None,
+    status: str | None = Query(None, pattern="^(not_started|in_progress|completed|overdue)$"),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.TrainingPlan)
+    if tea_sample_id:
+        query = query.filter(models.TrainingPlan.tea_sample_id == tea_sample_id)
+    if teacher_name:
+        query = query.filter(models.TrainingPlan.teacher_name.like(f"%{teacher_name}%"))
+    plans = query.order_by(models.TrainingPlan.created_at.desc()).all()
+    if status:
+        plans = [p for p in plans if compute_plan_status(p, db) == status]
+    return plans
+
+
+@app.post("/api/training-plans", response_model=schemas.TrainingPlanOut)
+def create_training_plan(payload: schemas.TrainingPlanCreate, db: Session = Depends(get_db)):
+    get_or_404(db, models.TeaSample, payload.tea_sample_id)
+    get_or_404(db, models.PouringTechnique, payload.target_technique_id)
+    obj = models.TrainingPlan(**payload.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.get("/api/training-plans/{item_id}", response_model=schemas.TrainingPlanDetailOut)
+def get_training_plan(item_id: int, db: Session = Depends(get_db)):
+    plan = get_or_404(db, models.TrainingPlan, item_id)
+    return build_plan_detail(plan, db)
+
+
+@app.put("/api/training-plans/{item_id}", response_model=schemas.TrainingPlanOut)
+def update_training_plan(item_id: int, payload: schemas.TrainingPlanUpdate, db: Session = Depends(get_db)):
+    obj = get_or_404(db, models.TrainingPlan, item_id)
+    return apply_update(db, obj, payload)
+
+
+@app.delete("/api/training-plans/{item_id}")
+def delete_training_plan(item_id: int, db: Session = Depends(get_db)):
+    obj = get_or_404(db, models.TrainingPlan, item_id)
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/training-plans/{plan_id}/sessions", response_model=list[schemas.TrainingSessionOut])
+def list_plan_sessions(plan_id: int, db: Session = Depends(get_db)):
+    get_or_404(db, models.TrainingPlan, plan_id)
+    return (
+        db.query(models.TrainingSession)
+        .filter(models.TrainingSession.plan_id == plan_id)
+        .order_by(models.TrainingSession.session_date.asc())
+        .all()
+    )
+
+
+@app.post("/api/training-sessions", response_model=schemas.TrainingSessionOut)
+def create_training_session(payload: schemas.TrainingSessionCreate, db: Session = Depends(get_db)):
+    get_or_404(db, models.TrainingPlan, payload.plan_id)
+    if payload.expected_tea_bowl_id:
+        get_or_404(db, models.TeaBowl, payload.expected_tea_bowl_id)
+    if payload.expected_tea_whisk_id:
+        get_or_404(db, models.TeaWhisk, payload.expected_tea_whisk_id)
+    obj = models.TrainingSession(**payload.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.put("/api/training-sessions/{item_id}", response_model=schemas.TrainingSessionOut)
+def update_training_session(item_id: int, payload: schemas.TrainingSessionUpdate, db: Session = Depends(get_db)):
+    obj = get_or_404(db, models.TrainingSession, item_id)
+    return apply_update(db, obj, payload)
+
+
+@app.delete("/api/training-sessions/{item_id}")
+def delete_training_session(item_id: int, db: Session = Depends(get_db)):
+    obj = get_or_404(db, models.TrainingSession, item_id)
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/statistics/training-plans", response_model=list[schemas.TrainingPlanStatOut])
+def stats_training_plans(db: Session = Depends(get_db)):
+    plans = db.query(models.TrainingPlan).all()
+    now = datetime.utcnow()
+    result = []
+    for plan in plans:
+        detail = build_plan_detail(plan, db)
+        total_sessions = len(plan.sessions)
+        completed = detail.completed_sessions
+        session_completion_rate = round(completed / total_sessions * 100, 1) if total_sessions > 0 else 0.0
+        in_plan_success_rate = 0.0
+        if detail.reviewed_count > 0:
+            in_plan_success_rate = round(detail.success_count / detail.reviewed_count * 100, 1)
+        overdue_count = sum(1 for s in plan.sessions if s.session_date < now and s.status != "completed")
+        result.append(
+            schemas.TrainingPlanStatOut(
+                id=plan.id,
+                name=plan.name,
+                teacher_name=plan.teacher_name,
+                achievement_rate=detail.achievement_rate,
+                session_completion_rate=session_completion_rate,
+                in_plan_success_rate=in_plan_success_rate,
+                overdue_sessions_count=overdue_count,
+                tea_sample_name=plan.tea_sample.name if plan.tea_sample else "—",
+            )
+        )
+    return result
 
 
 if __name__ == "__main__":

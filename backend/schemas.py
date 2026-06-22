@@ -111,6 +111,8 @@ class PracticeRecordCreate(BaseModel):
     foam_state: str = Field(..., max_length=50)
     pattern_description: Optional[str] = None
     pattern_photo_url: Optional[str] = None
+    training_plan_id: Optional[int] = None
+    training_session_id: Optional[int] = None
 
 
 class ReviewOut(BaseModel):
@@ -145,12 +147,16 @@ class PracticeRecordOut(BaseModel):
     pattern_description: Optional[str]
     pattern_photo_url: Optional[str]
     pattern_seed: Optional[int]
+    training_plan_id: Optional[int]
+    training_session_id: Optional[int]
     created_at: datetime
     tea_sample: Optional[TeaSampleOut] = None
     tea_bowl: Optional[TeaBowlOut] = None
     tea_whisk: Optional[TeaWhiskOut] = None
     technique: Optional[PouringTechniqueOut] = None
     review: Optional[ReviewOut] = None
+    training_plan: Optional["TrainingPlanOut"] = None
+    training_session: Optional["TrainingSessionOut"] = None
 
     class Config:
         from_attributes = True
@@ -204,3 +210,98 @@ class OverviewOut(BaseModel):
     total_whisks: int
     total_techniques: int
     total_experiences: int
+
+
+class TrainingPlanBase(BaseModel):
+    name: str = Field(..., max_length=200)
+    tea_sample_id: int
+    target_pattern: Optional[str] = None
+    target_technique_id: int
+    start_date: datetime
+    end_date: datetime
+    weekly_frequency: int = Field(..., ge=1, le=7)
+    stage_goal: Optional[str] = None
+    teacher_name: str = Field(..., max_length=50)
+
+
+class TrainingPlanCreate(TrainingPlanBase):
+    pass
+
+
+class TrainingPlanUpdate(TrainingPlanBase):
+    name: Optional[str] = None
+    tea_sample_id: Optional[int] = None
+    target_technique_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    weekly_frequency: Optional[int] = Field(None, ge=1, le=7)
+    teacher_name: Optional[str] = None
+
+
+class TrainingPlanOut(TrainingPlanBase):
+    id: int
+    created_at: datetime
+    tea_sample: Optional[TeaSampleOut] = None
+    target_technique: Optional[PouringTechniqueOut] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingPlanDetailOut(TrainingPlanOut):
+    sessions: list["TrainingSessionOut"] = []
+    completed_sessions: int = 0
+    linked_records_count: int = 0
+    reviewed_count: int = 0
+    success_count: int = 0
+    achievement_rate: float = 0.0
+    recent_reviews: list[dict] = []
+    pending_improvements: list[dict] = []
+
+
+class TrainingSessionBase(BaseModel):
+    plan_id: int
+    session_date: datetime
+    practitioner_name: str = Field(..., max_length=50)
+    expected_tea_bowl_id: Optional[int] = None
+    expected_tea_whisk_id: Optional[int] = None
+    status: str = "scheduled"
+    pre_session_tip: Optional[str] = None
+
+
+class TrainingSessionCreate(TrainingSessionBase):
+    pass
+
+
+class TrainingSessionUpdate(BaseModel):
+    session_date: Optional[datetime] = None
+    practitioner_name: Optional[str] = None
+    expected_tea_bowl_id: Optional[int] = None
+    expected_tea_whisk_id: Optional[int] = None
+    status: Optional[str] = None
+    pre_session_tip: Optional[str] = None
+
+
+class TrainingSessionOut(TrainingSessionBase):
+    id: int
+    created_at: datetime
+    expected_tea_bowl: Optional[TeaBowlOut] = None
+    expected_tea_whisk: Optional[TeaWhiskOut] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingPlanStatOut(BaseModel):
+    id: int
+    name: str
+    teacher_name: str
+    achievement_rate: float
+    session_completion_rate: float
+    in_plan_success_rate: float
+    overdue_sessions_count: int
+    tea_sample_name: str
+
+
+TrainingPlanDetailOut.model_rebuild()
+PracticeRecordOut.model_rebuild()

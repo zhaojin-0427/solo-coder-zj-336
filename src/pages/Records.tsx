@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Trash2, Camera, Search } from "lucide-react";
-import { recordApi } from "@/api/client";
+import { Plus, Filter, Trash2, Camera, Search, CalendarClock } from "lucide-react";
+import { recordApi, trainingPlanApi } from "@/api/client";
 import { useArchiveStore } from "@/store/useArchiveStore";
-import type { PracticeRecord, RecordStatus } from "@/types";
-import { SectionTitle, StatusSeal, formatDate, PATTERN_PLACEHOLDERS, matchPatternPlaceholder } from "@/components/ui";
+import type { PracticeRecord, RecordStatus, TrainingPlan, TrainingSession } from "@/types";
+import { SectionTitle, StatusSeal, formatDate, formatDateShort, PATTERN_PLACEHOLDERS, matchPatternPlaceholder } from "@/components/ui";
 import PatternArt from "@/components/PatternArt";
 import Modal from "@/components/Modal";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,8 @@ export default function Records() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([]);
+  const [planSessions, setPlanSessions] = useState<TrainingSession[]>([]);
 
   const [form, setForm] = useState({
     practitioner_name: "",
@@ -32,15 +34,25 @@ export default function Records() {
     foam_state: "细密如雪",
     pattern_description: "",
     pattern_photo_url: "",
+    training_plan_id: "",
+    training_session_id: "",
   });
 
   useEffect(() => {
     fetchAll();
+    loadTrainingPlans();
   }, [fetchAll]);
 
   useEffect(() => {
     loadRecords();
   }, [status, teaFilter]);
+
+  async function loadTrainingPlans() {
+    try {
+      const data = await trainingPlanApi.list({ status: "in_progress" });
+      setTrainingPlans(data);
+    } catch {}
+  }
 
   async function loadRecords() {
     const params: { status?: RecordStatus; tea_sample_id?: number } = {};
@@ -48,6 +60,17 @@ export default function Records() {
     if (teaFilter !== "") params.tea_sample_id = teaFilter;
     const data = await recordApi.list(params);
     setRecords(data);
+  }
+
+  async function handlePlanChange(planId: string) {
+    setForm({ ...form, training_plan_id: planId, training_session_id: "" });
+    setPlanSessions([]);
+    if (planId) {
+      try {
+        const sessions = await trainingPlanApi.listSessions(Number(planId));
+        setPlanSessions(sessions.filter((s) => s.status === "scheduled"));
+      } catch {}
+    }
   }
 
   async function handleCreate() {
@@ -65,6 +88,8 @@ export default function Records() {
         foam_state: form.foam_state,
         pattern_description: form.pattern_description || undefined,
         pattern_photo_url: form.pattern_photo_url || undefined,
+        training_plan_id: form.training_plan_id ? Number(form.training_plan_id) : undefined,
+        training_session_id: form.training_session_id ? Number(form.training_session_id) : undefined,
       });
       await loadRecords();
       setModalOpen(false);
@@ -73,7 +98,10 @@ export default function Records() {
         practitioner_name: "",
         pattern_description: "",
         pattern_photo_url: "",
+        training_plan_id: "",
+        training_session_id: "",
       });
+      setPlanSessions([]);
     } finally {
       setSaving(false);
     }
@@ -202,6 +230,12 @@ export default function Records() {
                     <div>茶样 · {r.tea_sample?.name ?? "—"}</div>
                     <div>手法 · {r.technique?.name ?? "—"}</div>
                   </div>
+                  {r.training_plan && (
+                    <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/10 border border-gold/30 text-[10px] text-gold">
+                      <CalendarClock size={10} />
+                      <span className="truncate max-w-[120px]">{r.training_plan.name}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-ink-200/40">
@@ -262,6 +296,45 @@ export default function Records() {
               placeholder="练习者姓名"
               className="input-ink"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="label-ink flex items-center gap-1.5">
+                <CalendarClock size={14} /> 关联训练计划（可选）
+              </label>
+              <select
+                value={form.training_plan_id}
+                onChange={(e) => handlePlanChange(e.target.value)}
+                className="input-ink"
+              >
+                <option value="">不关联计划</option>
+                {trainingPlans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.teacher_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {form.training_plan_id && (
+              <div className="col-span-2">
+                <label className="label-ink">关联课次（可选）</label>
+                <select
+                  value={form.training_session_id}
+                  onChange={(e) => setForm({ ...form, training_session_id: e.target.value })}
+                  className="input-ink"
+                >
+                  <option value="">仅关联计划，不指定课次</option>
+                  {planSessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {formatDateShort(s.session_date)} · {s.practitioner_name}
+                    </option>
+                  ))}
+                </select>
+                {planSessions.length === 0 && (
+                  <p className="text-xs text-ink-400 mt-1">该计划暂无待预约课次</p>
+                )}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

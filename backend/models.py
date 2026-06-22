@@ -86,6 +86,8 @@ class PracticeRecord(Base):
     pattern_description = Column(Text)
     pattern_photo_url = Column(Text)
     pattern_seed = Column(Integer)
+    training_plan_id = Column(Integer, ForeignKey("training_plan.id"))
+    training_session_id = Column(Integer, ForeignKey("training_session.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tea_sample = relationship("TeaSample", back_populates="practice_records")
@@ -93,6 +95,8 @@ class PracticeRecord(Base):
     tea_whisk = relationship("TeaWhisk", back_populates="practice_records")
     technique = relationship("PouringTechnique", back_populates="practice_records")
     review = relationship("Review", back_populates="practice_record", uselist=False, cascade="all, delete-orphan")
+    training_plan = relationship("TrainingPlan", back_populates="practice_records")
+    training_session = relationship("TrainingSession", back_populates="practice_records")
 
 
 class Review(Base):
@@ -128,3 +132,43 @@ class Experience(Base):
 
     tea_sample = relationship("TeaSample", back_populates="experiences")
     technique = relationship("PouringTechnique", back_populates="experiences")
+
+
+class TrainingPlan(Base):
+    __tablename__ = "training_plan"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False)
+    tea_sample_id = Column(Integer, ForeignKey("tea_sample.id"), nullable=False)
+    target_pattern = Column(Text)
+    target_technique_id = Column(Integer, ForeignKey("pouring_technique.id"), nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    weekly_frequency = Column(Integer, nullable=False, default=1)
+    stage_goal = Column(Text)
+    teacher_name = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    tea_sample = relationship("TeaSample")
+    target_technique = relationship("PouringTechnique")
+    sessions = relationship("TrainingSession", back_populates="plan", cascade="all, delete-orphan")
+    practice_records = relationship("PracticeRecord", back_populates="training_plan")
+
+
+class TrainingSession(Base):
+    __tablename__ = "training_session"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    plan_id = Column(Integer, ForeignKey("training_plan.id"), nullable=False)
+    session_date = Column(DateTime, nullable=False)
+    practitioner_name = Column(Text, nullable=False)
+    expected_tea_bowl_id = Column(Integer, ForeignKey("tea_bowl.id"))
+    expected_tea_whisk_id = Column(Integer, ForeignKey("tea_whisk.id"))
+    status = Column(Text, nullable=False, default="scheduled")
+    pre_session_tip = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    plan = relationship("TrainingPlan", back_populates="sessions")
+    expected_tea_bowl = relationship("TeaBowl")
+    expected_tea_whisk = relationship("TeaWhisk")
+    practice_records = relationship("PracticeRecord", back_populates="training_session")
